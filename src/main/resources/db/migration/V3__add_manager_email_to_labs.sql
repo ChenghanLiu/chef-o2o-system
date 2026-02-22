@@ -1,2 +1,0 @@
-ALTER TABLE labs
-    ADD COLUMN manager_email VARCHAR(200) NULL;
