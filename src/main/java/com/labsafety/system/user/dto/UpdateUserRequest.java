@@ -1,15 +1,16 @@
 package com.labsafety.system.user.dto;
 
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;
 
 public class UpdateUserRequest {
 
-    @Email
-    @Size(max = 150)
-    private String email;
+    @Size(max = 100)
+    private String username;
 
-    // ADMIN / TEACHER / STUDENT
+    @Size(max = 20)
+    private String phone;
+
+    // ADMIN / USER / CHEF
     private String role;
 
     @Size(min = 6, max = 100)
@@ -18,12 +19,20 @@ public class UpdateUserRequest {
     public UpdateUserRequest() {
     }
 
-    public String getEmail() {
-        return email;
+    public String getUsername() {
+        return username;
     }
 
-    public void setEmail(String email) {
-        this.email = email;
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
     }
 
     public String getRole() {

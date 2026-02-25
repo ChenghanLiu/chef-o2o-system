@@ -32,7 +32,7 @@ public class SessionController {
         return Map.of(
                 "id", user.getId(),
                 "username", user.getUsername(),
-                "email", user.getEmail(),
+                "email", user.getPhone(),
                 "role", user.getRole().name()
         );
     }

@@ -3,12 +3,23 @@ package com.labsafety.system.user.dto;
 public class UserResponse {
 
     private Long id;
+
+    // Login/display identity
     private String username;
+
+    // Chef-O2O primary contact (phone-based)
+    private String phone;
+
+    // Keep for backward compatibility (old code/frontends may still expect "email")
     private String email;
+
+    // "ADMIN" / "USER" / "CHEF"
     private String role;
 
-    public UserResponse() {
-    }
+    // "ACTIVE" / "DISABLED"
+    private String status;
+
+    public UserResponse() {}
 
     public Long getId() {
         return id;
@@ -26,9 +37,14 @@ public class UserResponse {
         this.username = username;
     }
 
-    public String getEmail() {
-        return email;
+    public String getPhone() {
+        return phone;
     }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
 
     public void setEmail(String email) {
         this.email = email;
@@ -40,5 +56,13 @@ public class UserResponse {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 }

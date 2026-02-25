@@ -1,26 +1,19 @@
 package com.labsafety.system.user.dto;
 
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public class CreateUserRequest {
 
-    @NotBlank
     @Size(max = 100)
     private String username;
 
-    @NotBlank
-    @Email
-    @Size(max = 150)
-    private String email;
+    @Size(max = 20)
+    private String phone;
 
-    @NotBlank
     @Size(min = 6, max = 100)
     private String password;
 
-    // ADMIN / TEACHER / STUDENT
-    @NotBlank
+    // ADMIN / USER / CHEF
     private String role;
 
     public CreateUserRequest() {
@@ -34,12 +27,12 @@ public class CreateUserRequest {
         this.username = username;
     }
 
-    public String getEmail() {
-        return email;
+    public String getPhone() {
+        return phone;
     }
 
-    public void setEmail(String email) {
-        this.email = email;
+    public void setPhone(String phone) {
+        this.phone = phone;
     }
 
     public String getPassword() {

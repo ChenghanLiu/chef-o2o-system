@@ -1,42 +1,57 @@
 package com.labsafety.system.user;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import java.time.Instant;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.time.Instant;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "users")
+@Table(name = "accounts")
 public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 100)
+    // Optional login identity
+    @Column(unique = true, length = 100)
     private String username;
 
-    @Column(nullable = false, unique = true, length = 150)
-    private String email;
+    // Chef-O2O primary login option
+    @Column(unique = true, length = 20)
+    private String phone;
 
-    @Column(nullable = false)
-    private String password;
+    // Keep for compatibility (optional)
+
+    @Column(name = "password_hash", nullable = false)
+    private String passwordHash;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private Role role;
 
+    @Column(nullable = false, length = 20)
+    private String status = "ACTIVE";
+
     @Column(nullable = false, updatable = false)
-    private Instant createdAt = Instant.now();
+    private Instant createdAt;
+
+    @Column(nullable = false)
+    private Instant updatedAt;
+
+    @PrePersist
+    public void prePersist() {
+        createdAt = Instant.now();
+        updatedAt = Instant.now();
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = Instant.now();
+    }
 }

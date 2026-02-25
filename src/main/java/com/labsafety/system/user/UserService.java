@@ -30,20 +30,25 @@ public class UserService {
     // ADMIN: create user
     // ===============================
     public UserResponse createByAdmin(CreateUserRequest request) {
-        if (userRepository.existsByUsername(request.getUsername())) {
+
+        validateIdentity(request.getUsername(), request.getPhone());
+
+        if (request.getUsername() != null && userRepository.existsByUsername(request.getUsername())) {
             throw new RuntimeException("Username already exists");
         }
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already exists");
+
+        if (request.getPhone() != null && userRepository.existsByPhone(request.getPhone())) {
+            throw new RuntimeException("Phone already exists");
         }
 
-        Role role = parseRoleOrThrow(request.getRole());
+        Role role = parseRoleOrDefault(request.getRole());
 
         User user = new User();
         user.setUsername(request.getUsername());
-        user.setEmail(request.getEmail());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setPhone(request.getPhone());
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setRole(role);
+        user.setStatus("ACTIVE");
 
         User saved = userRepository.save(user);
         return UserMapper.toResponse(saved);
@@ -68,26 +73,34 @@ public class UserService {
     }
 
     // ===============================
-    // ADMIN: update user (email/role/password)
+    // ADMIN: update user
     // ===============================
     public UserResponse updateByAdmin(Long id, UpdateUserRequest request) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        if (request.getEmail() != null && !request.getEmail().isBlank()) {
-            Optional<User> emailOwner = userRepository.findByEmail(request.getEmail());
-            if (emailOwner.isPresent() && !emailOwner.get().getId().equals(user.getId())) {
-                throw new RuntimeException("Email already exists");
+        if (request.getUsername() != null && !request.getUsername().isBlank()) {
+            Optional<User> owner = userRepository.findByUsername(request.getUsername());
+            if (owner.isPresent() && !owner.get().getId().equals(user.getId())) {
+                throw new RuntimeException("Username already exists");
             }
-            user.setEmail(request.getEmail());
+            user.setUsername(request.getUsername());
+        }
+
+        if (request.getPhone() != null && !request.getPhone().isBlank()) {
+            Optional<User> owner = userRepository.findByPhone(request.getPhone());
+            if (owner.isPresent() && !owner.get().getId().equals(user.getId())) {
+                throw new RuntimeException("Phone already exists");
+            }
+            user.setPhone(request.getPhone());
         }
 
         if (request.getRole() != null && !request.getRole().isBlank()) {
-            user.setRole(parseRoleOrThrow(request.getRole()));
+            user.setRole(parseRoleOrDefault(request.getRole()));
         }
 
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
-            user.setPassword(passwordEncoder.encode(request.getPassword()));
+            user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         }
 
         User saved = userRepository.save(user);
@@ -108,38 +121,61 @@ public class UserService {
     // ALL: get my profile
     // ===============================
     @Transactional(readOnly = true)
-    public UserResponse getMe(String username) {
-        User me = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public UserResponse getMe(String identifier) {
+        User me = findByIdentifier(identifier);
         return UserMapper.toResponse(me);
     }
 
     // ===============================
-    // ALL: update my profile (email/password only)
+    // ALL: update my profile
     // ===============================
-    public UserResponse updateMe(String username, UpdateMyProfileRequest request) {
-        User me = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public UserResponse updateMe(String identifier, UpdateMyProfileRequest request) {
+        User me = findByIdentifier(identifier);
 
-        if (request.getEmail() != null && !request.getEmail().isBlank()) {
-            Optional<User> emailOwner = userRepository.findByEmail(request.getEmail());
-            if (emailOwner.isPresent() && !emailOwner.get().getId().equals(me.getId())) {
-                throw new RuntimeException("Email already exists");
+        if (request.getUsername() != null && !request.getUsername().isBlank()) {
+            Optional<User> owner = userRepository.findByUsername(request.getUsername());
+            if (owner.isPresent() && !owner.get().getId().equals(me.getId())) {
+                throw new RuntimeException("Username already exists");
             }
-            me.setEmail(request.getEmail());
+            me.setUsername(request.getUsername());
+        }
+
+        if (request.getPhone() != null && !request.getPhone().isBlank()) {
+            Optional<User> owner = userRepository.findByPhone(request.getPhone());
+            if (owner.isPresent() && !owner.get().getId().equals(me.getId())) {
+                throw new RuntimeException("Phone already exists");
+            }
+            me.setPhone(request.getPhone());
         }
 
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
-            me.setPassword(passwordEncoder.encode(request.getPassword()));
+            me.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         }
 
         User saved = userRepository.save(me);
         return UserMapper.toResponse(saved);
     }
 
-    private Role parseRoleOrThrow(String raw) {
+    // ===============================
+    // helper methods
+    // ===============================
+
+    private void validateIdentity(String username, String phone) {
+        if ((username == null || username.isBlank())
+                && (phone == null || phone.isBlank())) {
+            throw new RuntimeException("Username or phone is required");
+        }
+    }
+
+    private User findByIdentifier(String identifier) {
+        return userRepository.findByUsername(identifier)
+                .or(() -> userRepository.findByPhone(identifier))
+                .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    private Role parseRoleOrDefault(String raw) {
         if (raw == null || raw.isBlank()) {
-            throw new RuntimeException("Role is required");
+            return Role.USER;
         }
         try {
             return Role.valueOf(raw.trim().toUpperCase());
