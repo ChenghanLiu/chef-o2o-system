@@ -3,15 +3,19 @@ package com.labsafety.system.review;
 import com.labsafety.system.order.Order;
 import com.labsafety.system.order.OrderRepository;
 import com.labsafety.system.order.OrderStatus;
+import com.labsafety.system.review.dto.ChefReviewResponse;
 import com.labsafety.system.review.dto.CreateReviewRequest;
 import com.labsafety.system.review.dto.ReviewResponse;
+import com.labsafety.system.user.Role;
 import com.labsafety.system.user.User;
 import com.labsafety.system.user.UserRepository;
 import com.labsafety.system.chef.ChefProfile;
 import com.labsafety.system.chef.ChefProfileRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.List;
@@ -71,6 +75,32 @@ public class ReviewService {
         chefProfileRepository.save(chef);
     }
 
+    @Transactional(readOnly = true)
+    public List<ChefReviewResponse> myReviewsAsChef(String identifier) {
+
+        User me = userRepository.findByUsername(identifier)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (me.getRole() != Role.CHEF) {
+            throw new RuntimeException("Only CHEF can view chef reviews");
+        }
+
+        ChefProfile profile = chefProfileRepository.findByAccount_Id(me.getId())
+                .orElseThrow(() -> new RuntimeException("Chef profile missing"));
+
+        List<Review> reviews = reviewRepository.findByChefWithUser(profile.getId());
+
+        return reviews.stream().map(r -> {
+            ChefReviewResponse dto = new ChefReviewResponse();
+            dto.setId(r.getId());
+            dto.setRating(r.getRating());
+            dto.setComment(r.getComment());
+            dto.setUsername(r.getUser().getUsername());
+            dto.setCreatedAt(r.getCreatedAt());
+            return dto;
+        }).toList();
+    }
+
     public List<ReviewResponse> getChefReviews(Long chefId) {
         return reviewRepository.findByChefWithUser(chefId)
                 .stream()
@@ -84,4 +114,30 @@ public class ReviewService {
                         .build())
                 .toList();
     }
+    @Transactional
+    public void deleteMyReview(String identifier, Long reviewId) {
+        User me = userRepository.findByUsername(identifier)
+                .or(() -> userRepository.findByPhone(identifier))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized"));
+
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Review not found"));
+
+        // ✅ ownership check
+        if (review.getUser() == null || review.getUser().getId() == null) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Review user missing");
+        }
+        if (!me.getId().equals(review.getUser().getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not your review");
+        }
+
+        // ✅ optional: keep chef id before delete if you want to recompute stats
+        Long chefProfileId = (review.getChef() != null ? review.getChef().getId() : null);
+
+        reviewRepository.delete(review);
+
+
+    }
+
+
 }

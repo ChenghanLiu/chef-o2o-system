@@ -35,4 +35,5 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
                                                                Collection<OrderStatus> statuses);
 
     Page<Order> findByChefIdAndStatus(Long chefId, OrderStatus status, Pageable pageable);
+
 }

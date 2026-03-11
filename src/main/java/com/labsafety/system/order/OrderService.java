@@ -92,7 +92,8 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public Page<OrderResponse> myOrdersAsChef(String identifier, Pageable pageable) {
+    public Page<OrderResponse> myOrdersAsChef(String identifier, OrderStatus status, Pageable pageable) {
+
         User me = findAccountByIdentifier(identifier);
         if (me.getRole() != Role.CHEF) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only CHEF can view chef orders");
@@ -101,7 +102,36 @@ public class OrderService {
         ChefProfile profile = chefProfileRepository.findByAccount_Id(me.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chef profile missing"));
 
-        return orderRepository.findByChefId(profile.getId(), pageable).map(this::toResponse);
+        Page<Order> page = (status == null)
+                ? orderRepository.findByChefId(profile.getId(), pageable)
+                : orderRepository.findByChefIdAndStatus(profile.getId(), status, pageable);
+
+        return page.map(this::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public OrderResponse chefOrderDetail(String identifier, Long orderId) {
+
+        User me = findAccountByIdentifier(identifier);
+        if (me.getRole() != Role.CHEF) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only CHEF can view chef orders");
+        }
+
+        ChefProfile profile = chefProfileRepository.findByAccount_Id(me.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chef profile missing"));
+
+        Order order = orderRepository.findByIdAndChefId(orderId, profile.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+
+        return toResponse(order);
+    }
+
+    public Order getChefOrderDetail(Long orderId, Long chefProfileId) {
+
+        Order order = orderRepository.findByIdAndChefId(orderId, chefProfileId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        return order;
     }
 
     public OrderResponse actAsUser(String identifier, Long orderId, OrderActionRequest req) {

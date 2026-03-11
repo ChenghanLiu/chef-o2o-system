@@ -1,0 +1,6 @@
+target
+.idea
+.git
+node_modules
+chef-o2o-frontend/node_modules
+chef-o2o-frontend/dist

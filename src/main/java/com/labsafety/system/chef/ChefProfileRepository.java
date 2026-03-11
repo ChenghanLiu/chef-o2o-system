@@ -1,6 +1,7 @@
 package com.labsafety.system.chef;
 
 
+import com.labsafety.system.cuisine.CuisineCategory;
 import com.labsafety.system.cuisine.dto.ChefPublicCardView;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,8 +24,18 @@ public interface ChefProfileRepository extends JpaRepository<ChefProfile, Long> 
     @Query("select c from ChefProfile c join fetch c.account where c.status = :status")
     Page<ChefProfile> findByStatusFetchAccount(@Param("status") String status, Pageable pageable);
 
+    @Query("select c from ChefProfile c join fetch c.account where c.account.id = :accountId")
+    Optional<ChefProfile> findByAccountIdFetchAccount(@Param("accountId") Long accountId);
+
     @Query("select c from ChefProfile c join fetch c.account where c.id = :id")
     Optional<ChefProfile> findByIdFetchAccount(@Param("id") Long id);
+
+    @Query("""
+    select c from CuisineCategory c
+    join ChefCuisine cc on c.id = cc.cuisineId  
+    where cc.chefId = :chefId
+    """)
+    List<CuisineCategory> findCuisinesByChefId(@Param("chefId") Long chefId);
 
     List<ChefProfile> findAllByStatus(String status);
 
@@ -82,4 +93,6 @@ public interface ChefProfileRepository extends JpaRepository<ChefProfile, Long> 
     """,
             nativeQuery = true)
     Page<ChefPublicCardView> findApprovedChefCardsByCuisine(@Param("cuisineId") Long cuisineId, Pageable pageable);
+
+
 }

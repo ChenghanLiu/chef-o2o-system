@@ -1,16 +1,22 @@
 package com.labsafety.system.order;
 
+import com.labsafety.system.chef.ChefProfile;
+import com.labsafety.system.chef.ChefProfileRepository;
 import com.labsafety.system.order.dto.CreateOrderRequest;
 import com.labsafety.system.order.dto.OrderActionRequest;
 import com.labsafety.system.order.dto.OrderResponse;
+import com.labsafety.system.user.User;
+import com.labsafety.system.user.UserRepository;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.labsafety.system.order.dto.OrderQuoteRequest;
 import com.labsafety.system.order.dto.OrderQuoteResponse;
+import org.springframework.security.core.Authentication;
 
 import java.security.Principal;
 
@@ -19,9 +25,13 @@ import java.security.Principal;
 public class OrderController {
 
     private final OrderService orderService;
+    private final UserRepository userRepository;
+    private final ChefProfileRepository chefProfileRepository;
 
-    public OrderController(OrderService orderService) {
+    public OrderController(OrderService orderService, UserRepository userRepository, ChefProfileRepository chefProfileRepository) {
         this.orderService = orderService;
+        this.userRepository = userRepository;
+        this.chefProfileRepository = chefProfileRepository;
     }
 
     // USER creates order
@@ -39,10 +49,13 @@ public class OrderController {
 
     // CHEF lists my orders
     @GetMapping("/chef/me")
-    public Page<OrderResponse> myOrdersAsChef(Principal principal,
-                                              @PageableDefault(size = 10) Pageable pageable) {
-        return orderService.myOrdersAsChef(principal.getName(), pageable);
+    public Page<OrderResponse> myOrdersAsChef(@RequestParam(required = false) OrderStatus status,
+                                              Pageable pageable,
+                                              Authentication auth) {
+        return orderService.myOrdersAsChef(auth.getName(), status, pageable);
     }
+
+
 
     // USER action: CANCEL
     @PostMapping("/{orderId}/me/action")
@@ -58,6 +71,21 @@ public class OrderController {
                                                    @PathVariable Long orderId,
                                                    @Valid @RequestBody OrderActionRequest req) {
         return ResponseEntity.ok(orderService.actAsChef(principal.getName(), orderId, req));
+    }
+
+    @GetMapping("/chef/{orderId}")
+    @PreAuthorize("hasRole('CHEF')")
+    public Order getChefOrderDetail(@PathVariable Long orderId,
+                                    Principal principal) {
+
+        User me = userRepository.findByUsername(principal.getName())
+                .or(() -> userRepository.findByPhone(principal.getName()))
+                .orElseThrow(() -> new RuntimeException("Unauthorized"));
+
+        ChefProfile chef = chefProfileRepository.findByAccount_Id(me.getId())
+                .orElseThrow(() -> new RuntimeException("Chef profile not found"));
+
+        return orderService.getChefOrderDetail(orderId, chef.getId());
     }
 
     @PostMapping("/quote")

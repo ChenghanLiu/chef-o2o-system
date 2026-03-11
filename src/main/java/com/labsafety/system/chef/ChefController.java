@@ -1,22 +1,43 @@
 package com.labsafety.system.chef;
 
 import com.labsafety.system.chef.dto.ChefProfileResponse;
+import com.labsafety.system.cuisine.CuisineCategory;
+import com.labsafety.system.user.Role;
 import com.labsafety.system.user.User;
+import com.labsafety.system.user.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.util.List;
+
+
+
+import java.util.List;
+
+
+
+import java.security.Principal;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/chefs")
 public class ChefController {
 
     private final ChefProfileRepository chefProfileRepository;
+    private final UserRepository userRepository;
+    private final JdbcTemplate jdbcTemplate;
 
-    public ChefController(ChefProfileRepository chefProfileRepository) {
+    public ChefController(ChefProfileRepository chefProfileRepository,
+                          UserRepository userRepository, JdbcTemplate jdbcTemplate) {
         this.chefProfileRepository = chefProfileRepository;
+        this.userRepository = userRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     /**
@@ -46,6 +67,79 @@ public class ChefController {
 
         return toResponse(chef);
     }
+
+    /**
+     * Chef-side: get my own chef profile
+     * GET /api/chefs/me
+     */
+    @GetMapping("/me")
+    @PreAuthorize("hasRole('CHEF')")
+    public ChefProfileResponse getMyChefProfile(Principal principal) {
+        if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+        }
+
+        String identifier = principal.getName();
+
+        User me = userRepository.findByUsername(identifier)
+                .or(() -> userRepository.findByPhone(identifier))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized"));
+
+        if (me.getRole() != Role.CHEF) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only CHEF can access");
+        }
+
+        ChefProfile chef = chefProfileRepository
+                .findByAccountIdFetchAccount(me.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chef profile missing"));
+        // 这里不强制 APPROVED：厨师自己可以看到自己的状态（PENDING/REJECTED/APPROVED）
+        return toResponse(chef);
+    }
+    @GetMapping("/me/cuisines")
+    @PreAuthorize("hasRole('CHEF')")
+    public List<CuisineCategory> myCuisines(Principal principal) {
+        User me = resolveUser(principal);
+
+        ChefProfile chef = chefProfileRepository.findByAccount_Id(me.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chef profile missing"));
+
+        return chefProfileRepository.findCuisinesByChefId(chef.getId());
+    }
+
+    @PutMapping("/me/cuisines")
+    @PreAuthorize("hasRole('CHEF')")
+    public void updateMyCuisines(@RequestBody List<Long> cuisineIds,
+                                 Principal principal) {
+
+        User me = resolveUser(principal);
+
+        ChefProfile chef = chefProfileRepository.findByAccount_Id(me.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chef profile missing"));
+
+        // 先删旧的
+        jdbcTemplate.update("delete from chef_cuisines where chef_id = ?", chef.getId());
+
+        // 再插新的
+        for (Long cuisineId : cuisineIds) {
+            jdbcTemplate.update(
+                    "insert into chef_cuisines (chef_id, cuisine_id) values (?, ?)",
+                    chef.getId(), cuisineId
+            );
+        }
+    }
+
+    private User resolveUser(Principal principal) {
+        if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+        }
+
+        String identifier = principal.getName();
+
+        return userRepository.findByUsername(identifier)
+                .or(() -> userRepository.findByPhone(identifier))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized"));
+    }
+
     private static ChefProfileResponse toResponse(ChefProfile chef) {
         ChefProfileResponse r = new ChefProfileResponse();
         r.setId(chef.getId());

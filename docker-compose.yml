@@ -1,0 +1,47 @@
+services:
+  chef-mysql:
+    image: mysql:8.0
+    container_name: chef-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_DATABASE: chef_o2o
+      TZ: Asia/Shanghai
+    ports:
+      - "3310:3306"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - chef_mysql_data:/var/lib/mysql
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  chef-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chef-backend
+    restart: unless-stopped
+    depends_on:
+      - chef-mysql
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://chef-mysql:3306/chef_o2o?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: 123456
+      SPRING_FLYWAY_ENABLED: "false"
+    ports:
+      - "8082:8082"
+
+  chef-frontend:
+    build:
+      context: ./chef-o2o-frontend
+      dockerfile: Dockerfile
+    container_name: chef-frontend
+    restart: unless-stopped
+    depends_on:
+      - chef-backend
+    ports:
+      - "8080:80"
+
+volumes:
+  chef_mysql_data:

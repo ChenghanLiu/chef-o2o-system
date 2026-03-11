@@ -1,5 +1,6 @@
 package com.labsafety.system.review;
 
+import com.labsafety.system.review.dto.ChefReviewResponse;
 import com.labsafety.system.review.dto.CreateReviewRequest;
 import com.labsafety.system.review.dto.ReviewResponse;
 import jakarta.validation.Valid;
@@ -21,12 +22,23 @@ public class ReviewController {
     @PreAuthorize("hasRole('USER')")
     public void createReview(@Valid @RequestBody CreateReviewRequest request,
                              Authentication authentication) {
-
         reviewService.createReview(authentication.getName(), request);
+    }
+
+    // ✅ NEW: USER delete my own review
+    @DeleteMapping("/{reviewId}")
+    @PreAuthorize("hasRole('USER')")
+    public void deleteMyReview(@PathVariable Long reviewId, Authentication authentication) {
+        reviewService.deleteMyReview(authentication.getName(), reviewId);
     }
 
     @GetMapping("/chef/{chefId}")
     public List<ReviewResponse> getChefReviews(@PathVariable Long chefId) {
         return reviewService.getChefReviews(chefId);
+    }
+
+    @GetMapping("/chef/me")
+    public List<ChefReviewResponse> myReviewsAsChef(Authentication auth) {
+        return reviewService.myReviewsAsChef(auth.getName());
     }
 }

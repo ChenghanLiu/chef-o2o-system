@@ -72,7 +72,7 @@ public class UserController {
     // ALL: get my profile
     // ===============================
     @GetMapping("/me")
-    @PreAuthorize("hasAnyRole('ADMIN','TEACHER','STUDENT')")
+    @PreAuthorize("hasAnyRole('ADMIN','USER','CHEF')")
     public UserResponse me(Authentication authentication) {
         return userService.getMe(authentication.getName());
     }
@@ -81,7 +81,7 @@ public class UserController {
     // ALL: update my profile (email/password only)
     // ===============================
     @PutMapping("/me")
-    @PreAuthorize("hasAnyRole('ADMIN','TEACHER','STUDENT')")
+    @PreAuthorize("hasAnyRole('ADMIN','USER','CHEF')")
     public UserResponse updateMe(Authentication authentication,
                                  @Valid @RequestBody UpdateMyProfileRequest request) {
         return userService.updateMe(authentication.getName(), request);
